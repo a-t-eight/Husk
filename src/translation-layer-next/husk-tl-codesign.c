@@ -914,7 +914,6 @@ static OSStatus pkcs12_open(CFDataRef data, const char *password,
         int nv = 0;
         variants[nv] = pass; omit[nv] = false; nv++;
         if (text[t][0]) { variants[nv] = CFSTR(""); omit[nv] = false; nv++; }
-        variants[nv] = kCFNull; omit[nv] = false; nv++;
         variants[nv] = pass; omit[nv] = true; nv++; /* no passphrase key: OpenSSL NULL, 0 */
         for (int i = 0; i < nv; i++) {
             CFArrayRef got = NULL;
