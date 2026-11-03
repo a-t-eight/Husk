@@ -1,0 +1,16 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -6,6 +6,13 @@
+ 
+ target_include_directories(${FFMPEG_CORE_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+ 
++# The parent iOS target supplies ffmpeg_stub.cpp against these headers.
++# APPLE also matches iOS, but the available prebuilts and their framework
++# dependencies below are macOS-only.
++if (CMAKE_SYSTEM_NAME STREQUAL "iOS")
++	return()
++endif()
++
+ # Detect OS
+ if (WIN32 AND NOT MINGW)
+ 	set(FFMPEG_PREBUILTS_NAME "ffmpeg-windows")

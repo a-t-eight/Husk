@@ -53,14 +53,32 @@ if ! grep -q "^ENABLE_FEX_ALLOCATOR:BOOL=OFF" "$FEX_BUILD/CMakeCache.txt"; then
 fi
 make -C "$FEX_BUILD" -j"$JOBS" FEXCore Common CommonTools JemallocLibs
 
-# This pinned ImGuiFileDialog revision shells out to mkdir, unavailable on iOS.
-# Keep the source checkout clean for the next dependency preparation run.
+# Apply the pinned dependencies' iOS corrections only for this build, keeping
+# source checkouts clean for the next dependency preparation run.
 IGFD_DIR="$BACHATA/externals/ImGuiFileDialog"
 IGFD_PATCH="$HUSK/patches/imgui-file-dialog-ios.patch"
+FFMPEG_DIR="$BACHATA/externals/ffmpeg-core"
+FFMPEG_PATCH="$HUSK/patches/ffmpeg-core-ios.patch"
+IGFD_PATCH_APPLIED=0
+FFMPEG_PATCH_APPLIED=0
+restore_dependency_sources() {
+    if [ "$FFMPEG_PATCH_APPLIED" = 1 ]; then
+        git -C "$FFMPEG_DIR" apply --reverse "$FFMPEG_PATCH"
+    fi
+    if [ "$IGFD_PATCH_APPLIED" = 1 ]; then
+        git -C "$IGFD_DIR" apply --reverse "$IGFD_PATCH"
+    fi
+}
+trap restore_dependency_sources EXIT
 if ! git -C "$IGFD_DIR" apply --reverse --check "$IGFD_PATCH" 2>/dev/null; then
     git -C "$IGFD_DIR" apply --check "$IGFD_PATCH"
     git -C "$IGFD_DIR" apply "$IGFD_PATCH"
-    trap 'git -C "$IGFD_DIR" apply --reverse "$IGFD_PATCH"' EXIT
+    IGFD_PATCH_APPLIED=1
+fi
+if ! git -C "$FFMPEG_DIR" apply --reverse --check "$FFMPEG_PATCH" 2>/dev/null; then
+    git -C "$FFMPEG_DIR" apply --check "$FFMPEG_PATCH"
+    git -C "$FFMPEG_DIR" apply "$FFMPEG_PATCH"
+    FFMPEG_PATCH_APPLIED=1
 fi
 
 # Reconfigure existing builds too, including changes to FEX's library list.

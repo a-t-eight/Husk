@@ -39,8 +39,13 @@ python -m pip install -r scripts/requirements-build.txt
 On a runner with a JDK already installed, use its `JAVA_HOME`; `HUSK_JDK` takes
 precedence. Rust/rustup must be installed before adding the iOS target. Homebrew's
 e2fsprogs is keg-only; the preparation script also discovers it via `brew --prefix`.
+Xcode's Metal toolchain must be available (`xcrun metal --version`).
 Keep the Python environment active during the build: virglrenderer's Gallium
 format generator requires PyYAML. The GitHub workflow sets this up automatically.
+For a disposable tool environment, Meson and Ninja are resolved from `PATH`
+(or the `MESON`/`NINJA` executable overrides in the GPU build). Set `JOBS` to
+control parallelism for QEMU, its base libraries, and PS4. ANGLE's DerivedData stays
+under `third_party/gpu/angle-derived-data`; set `DD` for the app's DerivedData.
 
 ## Preparation and builds
 
@@ -80,6 +85,10 @@ Only hwinfo's CPU, RAM and OS components are built, matching the emulator's
 call sites. Unused desktop hardware probes are disabled because their macOS
 IOKit headers are unavailable in the iOS SDK. Existing PS4 build directories
 are reconfigured so these options also apply to incremental builds.
+The FFmpeg dependency is temporarily patched to expose headers only on iOS,
+avoiding its macOS archives and framework flags. The parent PS4 target already
+supplies `ffmpeg_stub.cpp` for iOS; this preserves that existing fallback and
+does not add FFmpeg decoding support. Both dependency patches are reversed on exit.
 
 ## Sources and integrity
 
