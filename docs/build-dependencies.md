@@ -76,6 +76,10 @@ helper before configuring the iOS cross-build.
 It temporarily patches ImGuiFileDialog to create directories with C++ filesystem
 calls instead of invoking a shell, which iOS disallows. The patch is reversed on
 exit so the pinned dependency checkout remains clean.
+Only hwinfo's CPU, RAM and OS components are built, matching the emulator's
+call sites. Unused desktop hardware probes are disabled because their macOS
+IOKit headers are unavailable in the iOS SDK. Existing PS4 build directories
+are reconfigured so these options also apply to incremental builds.
 
 ## Sources and integrity
 

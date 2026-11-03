@@ -50,7 +50,6 @@ fi
 if ! grep -q "^ENABLE_FEX_ALLOCATOR:BOOL=OFF" "$FEX_BUILD/CMakeCache.txt"; then
     cmake -DENABLE_FEX_ALLOCATOR=OFF "$FEX_BUILD"
     rm -f "$FEX_BUILD/External/rpmalloc/librpmalloc.a"
-    RECONFIGURE_CORE=1   # the core's CMake lists FEXCore's libraries as they exist when it configures
 fi
 make -C "$FEX_BUILD" -j"$JOBS" FEXCore Common CommonTools JemallocLibs
 
@@ -64,16 +63,16 @@ if ! git -C "$IGFD_DIR" apply --reverse --check "$IGFD_PATCH" 2>/dev/null; then
     trap 'git -C "$IGFD_DIR" apply --reverse "$IGFD_PATCH"' EXIT
 fi
 
-if [ ! -f "$CORE_BUILD/CMakeCache.txt" ]; then
-    cmake -S "$BACHATA" -B "$CORE_BUILD" -G Ninja -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET=17.4 -DCMAKE_BUILD_TYPE=Release -DENABLE_FEX_GUEST_CPU=ON \
-        -DFEXCORE_GUEST_CPU_BUILD_DIR="$FEX_BUILD" -DFEXCORE_GUEST_CPU_SOURCE_DIR="$FEX_SRC" \
-        -DENABLE_SHADPS4_IOS_LIB=ON -DENABLE_HUSK_MODULE=ON -DENABLE_DISCORD_RPC=OFF -DENABLE_UPDATER=OFF \
-        -DIMGUI_FONT_EMBED_EXECUTABLE="$FONT_TOOL" \
-        -DALLOWS_ONESHOT_TIMERS_WITH_TIMEOUT_ZERO_EXITCODE=0
-elif [ "${RECONFIGURE_CORE:-0}" = 1 ]; then
-    cmake "$CORE_BUILD"
-fi
+# Reconfigure existing builds too, including changes to FEX's library list.
+# The emulator uses only CPU/RAM/OS information; the other hwinfo probes pull
+# in desktop APIs (including IOKit power-source headers unavailable on iOS).
+cmake -S "$BACHATA" -B "$CORE_BUILD" -G Ninja -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=17.4 -DCMAKE_BUILD_TYPE=Release -DENABLE_FEX_GUEST_CPU=ON \
+    -DFEXCORE_GUEST_CPU_BUILD_DIR="$FEX_BUILD" -DFEXCORE_GUEST_CPU_SOURCE_DIR="$FEX_SRC" \
+    -DENABLE_SHADPS4_IOS_LIB=ON -DENABLE_HUSK_MODULE=ON -DENABLE_DISCORD_RPC=OFF -DENABLE_UPDATER=OFF \
+    -DIMGUI_FONT_EMBED_EXECUTABLE="$FONT_TOOL" \
+    -DHWINFO_BATTERY=OFF -DHWINFO_DISK=OFF -DHWINFO_GPU=OFF -DHWINFO_MAINBOARD=OFF -DHWINFO_NETWORK=OFF \
+    -DALLOWS_ONESHOT_TIMERS_WITH_TIMEOUT_ZERO_EXITCODE=0
 ninja -C "$CORE_BUILD" huskps4
 
 DYLIB="$CORE_BUILD/libhuskps4.dylib"
