@@ -31,11 +31,16 @@ brew install meson ninja pkg-config python xcodegen qemu e2fsprogs cmake ccache 
 export JAVA_HOME="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
 export DEBUGFS="$(brew --prefix e2fsprogs)/sbin/debugfs"
 rustup target add aarch64-apple-ios
+python3 -m venv build/python
+source build/python/bin/activate
+python -m pip install -r scripts/requirements-build.txt
 ```
 
 On a runner with a JDK already installed, use its `JAVA_HOME`; `HUSK_JDK` takes
 precedence. Rust/rustup must be installed before adding the iOS target. Homebrew's
 e2fsprogs is keg-only; the preparation script also discovers it via `brew --prefix`.
+Keep the Python environment active during the build: virglrenderer's Gallium
+format generator requires PyYAML. The GitHub workflow sets this up automatically.
 
 ## Preparation and builds
 

@@ -63,6 +63,13 @@ jobs:
           python3 --version
           cargo --version
 
+      - name: Install Python build dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/husk-python"
+          "$RUNNER_TEMP/husk-python/bin/python" -m pip install -r scripts/requirements-build.txt
+          echo "$RUNNER_TEMP/husk-python/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/husk-python/bin/python" -c 'import yaml; print("PyYAML", yaml.__version__)'
+
       - name: Test dependency preparation and certificate verification
         run: |
           python3 -B -m unittest discover -s tests -p test_prepare_dependencies.py -v
