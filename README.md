@@ -59,13 +59,17 @@ Games need [JIT](https://itslevii.dev/docs/jit), or they can run from [Play with
 
 ## Building
 
-On a Mac with Xcode, plus `meson`, `ninja`, `pkg-config`, `python3`, `xcodegen`, `qemu-img`, and a Rust toolchain with `aarch64-apple-ios`:
+On a Mac with Xcode, Python 3.11+, JDK 17+, `meson`, `ninja`, `pkg-config`, `xcodegen`, `qemu-img`, `debugfs` (e2fsprogs), `cmake`, `ccache`, and a Rust toolchain with `aarch64-apple-ios`:
 
 ```sh
 ./scripts/ci_build.sh
 ```
 
 That produces `build/Husk.ipa`. Later app-only rebuilds: `./scripts/package_ipa.sh` → `~/Desktop/Husk.ipa`.
+
+The build prepares pinned PS4 sources, Android fonts/certificates and Java runtime
+inputs automatically. See [dependency preparation](docs/build-dependencies.md)
+for tool installation, download sizes, source pins and preparation without an app build.
 
 ## Licence
 

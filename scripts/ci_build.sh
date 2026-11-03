@@ -10,6 +10,14 @@ cd "$HUSK_ROOT"
 
 step() { printf '\n\033[1;34m##### %s\033[0m\n' "$*"; }
 
+step "prepare pinned PS4 sources, Android resources and Java tooling"
+python3 ./scripts/prepare_dependencies.py
+. "$HUSK_ROOT/third_party/build/dependencies.env"
+./scripts/build_android_system.sh --prepared "$HUSK_ANDROID_INPUTS"
+HTTP_LEGACY="$HUSK_ANDROID_INPUTS/framework/org.apache.http.legacy.jar" \
+FRAMEWORK_RES="$HUSK_ANDROID_INPUTS/framework/framework-res.apk" \
+HUSK_AOSP="${HUSK_AOSP:-0}" ./scripts/build_java_runtime.sh "$HUSK_ANDROID_INPUTS/apex"
+
 step "fetch sources"
 ./scripts/fetch_sources.sh
 
@@ -50,6 +58,9 @@ fi
 
 step "on-device pairing (Rust)"
 ./scripts/build_rppairing_ios.sh
+
+step "PS4 module"
+./scripts/build_ps4_ios.sh
 
 step "app + IPA"
 mkdir -p "$(dirname "$OUT")"
