@@ -1,0 +1,18 @@
+{
+  "ps4": {
+    "url": "https://github.com/Leviidev/AetherPS4.git",
+    "commit": "03c2deba16f6450f651a51b0e6ae45b66305022b"
+  },
+  "fex": {
+    "url": "https://github.com/Leviidev/Fathom.git",
+    "commit": "d6195b0baa392ee53de97e49e5ae5123108f77d3"
+  },
+  "android": {
+    "url": "https://github.com/Leviidev/Husk/releases/download/lineage-v2/vda-v12.qcow2",
+    "sha256": "a8dbaecc8fdcd682991b078d6bbb7df6972e459208634fa8dcbad24f17208d6a"
+  },
+  "r8": {
+    "url": "https://storage.googleapis.com/r8-releases/raw/8.5.35/r8.jar",
+    "sha256": "cb112407ef132dfcb1e5e1a9d4e6fefa89807822e65a9ffbdbb68ee442985405"
+  }
+}

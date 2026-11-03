@@ -12,6 +12,25 @@
 set -euo pipefail
 
 HUSK_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ "${1:-}" = --prepared ]; then
+    INPUTS="${2:?usage: build_android_system.sh --prepared <android-inputs>}"
+    OUT="$HUSK_ROOT/build/android-system"
+    # Check inputs before replacing any existing output.
+    test -d "$INPUTS/fonts"
+    test -s "$INPUTS/etc/fonts.xml"
+    test -s "$INPUTS/etc/font_fallback.xml"
+    test -d "$INPUTS/apex/com.android.conscrypt/cacerts"
+    WORK="$(mktemp -d)"
+    trap 'rm -rf "$WORK"' EXIT
+    mkdir -p "$WORK/fonts" "$WORK/etc" "$WORK/cacerts" "$OUT"
+    # Match the original image-based path: regular, non-CJK files over 100 bytes.
+    find "$INPUTS/fonts" -type f ! -name '*CJK*' -size +100c -exec cp {} "$WORK/fonts/" \;
+    cp "$INPUTS/etc/fonts.xml" "$INPUTS/etc/font_fallback.xml" "$WORK/etc/"
+    cp "$INPUTS/apex/com.android.conscrypt/cacerts/"* "$WORK/cacerts/"
+    rsync -a --delete "$WORK/" "$OUT/"
+    echo "==> Android fonts and CA certificates staged from $INPUTS"
+    exit 0
+fi
 IMG="${1:?usage: build_android_system.sh <vda.qcow2|vda.raw>}"
 OUT="$HUSK_ROOT/build/android-system"
 DEBUGFS="$(command -v debugfs || echo /opt/homebrew/opt/e2fsprogs/sbin/debugfs)"

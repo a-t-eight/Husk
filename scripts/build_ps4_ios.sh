@@ -4,23 +4,39 @@
 #
 #   scripts/build_ps4_ios.sh            # build with the trees at BACHATA_DIR and HUSK_FEX_DIR
 #
-# BACHATA_DIR (default ~/Documents/Coding/AetherCore4/Bachata-S4) must be on branch husk; HUSK_FEX_DIR (default
-# ~/Documents/Coding/husk-fex) on branch husk-fex. Their commits are printed, and written next to the dylib, so a build says
-# what it was made from.
+# Run prepare_dependencies.py first. BACHATA_DIR and HUSK_FEX_DIR can override
+# the prepared checkouts; both must match scripts/dependencies.json.
 set -euo pipefail
 HUSK="$(cd "$(dirname "$0")/.." && pwd)"
-BACHATA="${BACHATA_DIR:-$HOME/Documents/Coding/AetherCore4/Bachata-S4}"
-FEX="${HUSK_FEX_DIR:-$HOME/Documents/Coding/husk-fex}"
+if [ -z "${BACHATA_DIR:-}" ] || [ -z "${HUSK_FEX_DIR:-}" ]; then
+    . "$HUSK/third_party/build/dependencies.env"
+fi
+BACHATA="$BACHATA_DIR"
+FEX="$HUSK_FEX_DIR"
 FEX_SRC="$FEX/runtime/sources/fexcore-darwin"
 FEX_BUILD="$BACHATA/runtime/build/fexcore-huskfex-ios"
 CORE_BUILD="$BACHATA/runtime/build/huskps4-ios"
 OUT="$HUSK/build/ios-arm64/lib"
 JOBS="${JOBS:-$(sysctl -n hw.ncpu)}"
 
-[ "$(git -C "$BACHATA" branch --show-current)" = husk ] || { echo "error: $BACHATA is not on branch husk" >&2; exit 1; }
-[ "$(git -C "$FEX" branch --show-current)" = husk-fex ] || { echo "error: $FEX is not on branch husk-fex" >&2; exit 1; }
+python3 - "$HUSK/scripts/dependencies.json" "$BACHATA" "$FEX" <<'PY'
+import json, subprocess, sys
+lock = json.load(open(sys.argv[1]))
+for key, path in zip(('ps4', 'fex'), sys.argv[2:]):
+    actual = subprocess.check_output(['git', '-C', path, 'rev-parse', 'HEAD'], text=True).strip()
+    if actual != lock[key]['commit']:
+        sys.exit(f'{key}: unexpected revision {actual}; run scripts/prepare_dependencies.py')
+PY
 CORE_REV="$(git -C "$BACHATA" rev-parse --short HEAD)"; FEX_REV="$(git -C "$FEX" rev-parse --short HEAD)"
 echo "PS4 layer: core $CORE_REV, FEXCore $FEX_REV"
+
+# ImGui's cross-build needs a native font embedding tool before CMake configures.
+FONT_SOURCE="$BACHATA/externals/dear_imgui/misc/fonts/binary_to_compressed_c.cpp"
+FONT_TOOL="$BACHATA/runtime/build/host-tools/Dear_ImGui_FontEmbed"
+if [ ! -x "$FONT_TOOL" ] || [ "$FONT_SOURCE" -nt "$FONT_TOOL" ]; then
+    mkdir -p "$(dirname "$FONT_TOOL")"
+    xcrun --sdk macosx clang++ -O2 "$FONT_SOURCE" -o "$FONT_TOOL"
+fi
 
 if [ ! -f "$FEX_BUILD/CMakeCache.txt" ]; then
     cmake -S "$FEX_SRC" -B "$FEX_BUILD" -G "Unix Makefiles" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos \
@@ -43,7 +59,7 @@ if [ ! -f "$CORE_BUILD/CMakeCache.txt" ]; then
         -DCMAKE_OSX_DEPLOYMENT_TARGET=17.4 -DCMAKE_BUILD_TYPE=Release -DENABLE_FEX_GUEST_CPU=ON \
         -DFEXCORE_GUEST_CPU_BUILD_DIR="$FEX_BUILD" -DFEXCORE_GUEST_CPU_SOURCE_DIR="$FEX_SRC" \
         -DENABLE_SHADPS4_IOS_LIB=ON -DENABLE_HUSK_MODULE=ON -DENABLE_DISCORD_RPC=OFF -DENABLE_UPDATER=OFF \
-        -DIMGUI_FONT_EMBED_EXECUTABLE="$BACHATA/runtime/build/host-tools/Dear_ImGui_FontEmbed" \
+        -DIMGUI_FONT_EMBED_EXECUTABLE="$FONT_TOOL" \
         -DALLOWS_ONESHOT_TIMERS_WITH_TIMEOUT_ZERO_EXITCODE=0
 elif [ "${RECONFIGURE_CORE:-0}" = 1 ]; then
     cmake "$CORE_BUILD"
