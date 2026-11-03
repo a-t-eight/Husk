@@ -160,6 +160,12 @@ stage_qemu() {
     local log="$LOGS/qemu.log"
     done_stage qemu && { echo "[skip] qemu"; return 0; }
     apply_patch qemu-10.0.12-utm qemu-10.0.12-utm.patch
+    # QEMU loads this after its generated cross file. Darwin/arm64 also describes
+    # the macOS build host, but it cannot execute our iOS compiler probes.
+    cat > "$dir/configs/meson/darwin.txt" <<EOF
+[properties]
+needs_exe_wrapper = true
+EOF
     banner "building qemu (this is the long one)"
     rm -rf "$dir/_husk_build"; mkdir -p "$dir/_husk_build"
     ( cd "$dir/_husk_build" \

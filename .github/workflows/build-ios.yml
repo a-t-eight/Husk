@@ -122,5 +122,6 @@ jobs:
             ${{ runner.temp }}/husk-ci.log
             ${{ runner.temp }}/husk-derived-data/build.log
             build/logs/
+            third_party/build/qemu-10.0.12-utm/_husk_build/meson-logs/
           if-no-files-found: warn
           retention-days: 14
