@@ -1,0 +1,119 @@
+name: Build Husk iOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_ref:
+        description: Branch, tag or commit to build
+        required: true
+        default: bugfix/p12-macverification
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: husk-ios-${{ inputs.build_ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Standard GitHub-hosted Apple Silicon runner; not a paid larger runner.
+    runs-on: xcode-27
+    timeout-minutes: 240
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out requested source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.build_ref }}
+          persist-credentials: false
+
+      - name: Record source and runner
+        id: source
+        run: |
+          echo "DD=$RUNNER_TEMP/husk-derived-data" >> "$GITHUB_ENV"
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "short=${sha:0:12}" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Husk iOS build"
+            echo "Source commit: $sha"
+            echo '```text'
+            sw_vers
+            uname -m
+            xcodebuild -version
+            xcrun --sdk iphoneos --show-sdk-version
+            df -h .
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Install build tools
+        run: |
+          brew install meson ninja pkg-config python xcodegen qemu e2fsprogs cmake ccache openssl@3
+          echo "DEBUGFS=$(brew --prefix e2fsprogs)/sbin/debugfs" >> "$GITHUB_ENV"
+          echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"
+          echo "JAVA_HOME=$JAVA_HOME_17_arm64" >> "$GITHUB_ENV"
+          rustup target add aarch64-apple-ios
+          python3 --version
+          cargo --version
+
+      - name: Test dependency preparation and certificate verification
+        run: |
+          python3 -B -m unittest discover -s tests -p test_prepare_dependencies.py -v
+          if [[ -f tests/translation-layer/run_pkcs12_mac.sh ]]; then
+            bash tests/translation-layer/run_pkcs12_mac.sh
+          fi
+
+      - name: Build IPA and TrollStore package
+        run: |
+          ./scripts/ci_build.sh "$GITHUB_WORKSPACE/build/Husk.ipa" 2>&1 | tee "$RUNNER_TEMP/husk-ci.log"
+
+      - name: Verify packages and record checksums
+        run: |
+          test -s build/Husk.ipa
+          test -s build/Husk.tipa
+          unzip -tq build/Husk.ipa
+          unzip -tq build/Husk.tipa
+          shasum -a 256 build/Husk.ipa build/Husk.tipa > build/SHA256SUMS
+          printf '%s\n' "$SOURCE_SHA" > build/SOURCE_COMMIT
+          {
+            echo "### Package checksums"
+            echo '```text'
+            cat build/SHA256SUMS
+            echo '```'
+            echo "Download the packages from this run's Artifacts section."
+            echo "The IPA requires signing by your sideloading tool."
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+
+      - name: Upload packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Husk-${{ steps.source.outputs.short }}-${{ github.run_id }}
+          path: |
+            build/Husk.ipa
+            build/Husk.tipa
+            build/SHA256SUMS
+            build/SOURCE_COMMIT
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Husk-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/husk-ci.log
+            ${{ runner.temp }}/husk-derived-data/build.log
+            build/logs/
+          if-no-files-found: warn
+          retention-days: 14
