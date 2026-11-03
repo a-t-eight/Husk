@@ -73,6 +73,9 @@ HUSK_AOSP=0 ./scripts/build_java_runtime.sh "$HUSK_ANDROID_INPUTS/apex"
 Run full preparation before the Android steps; `--sources-only` deliberately leaves
 the Android inputs unprepared. The PS4 build compiles its native ImGui font-embedding
 helper before configuring the iOS cross-build.
+It temporarily patches ImGuiFileDialog to create directories with C++ filesystem
+calls instead of invoking a shell, which iOS disallows. The patch is reversed on
+exit so the pinned dependency checkout remains clean.
 
 ## Sources and integrity
 
