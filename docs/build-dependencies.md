@@ -3,8 +3,24 @@
 `scripts/ci_build.sh` now prepares the inputs that used to come from the upstream
 developer's local directories. It stages Android fonts and CA certificates, builds
 Husk's Java framework with R8, and builds the PS4 module before packaging the app.
-No Apple signing certificate is required. This change does not add a GitHub Actions
-workflow; the same commands can be run on a hosted macOS runner.
+No Apple signing certificate is required.
+
+## Build on GitHub
+
+Open **Actions → Build Husk iOS → Run workflow**. Use the workflow from `main`,
+then enter the branch, tag or commit to build. The default is
+`bugfix/p12-macverification`, which includes both certificate-import fixes.
+
+The workflow uses GitHub's standard Apple Silicon `xcode-27` runner, installs the
+build tools, runs the available preparation/MAC tests, and builds the packages.
+No Apple certificate, private key or signing-account secret is needed. A successful
+run uploads `Husk.ipa`, `Husk.tipa`, SHA-256 checksums and the source commit in the
+**Artifacts** section. Artifacts expire after 14 days. Build logs are uploaded on
+success or failure. Sign the IPA with your sideloading tool when installing it.
+
+The workflow is manual; pushing a commit does not start a build. It does not publish
+a release or install anything on a device. The first build uses a clean dependency
+checkout; no native build-output cache is restored.
 
 ## Host tools
 
