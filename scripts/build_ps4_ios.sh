@@ -54,6 +54,16 @@ if ! grep -q "^ENABLE_FEX_ALLOCATOR:BOOL=OFF" "$FEX_BUILD/CMakeCache.txt"; then
 fi
 make -C "$FEX_BUILD" -j"$JOBS" FEXCore Common CommonTools JemallocLibs
 
+# This pinned ImGuiFileDialog revision shells out to mkdir, unavailable on iOS.
+# Keep the source checkout clean for the next dependency preparation run.
+IGFD_DIR="$BACHATA/externals/ImGuiFileDialog"
+IGFD_PATCH="$HUSK/patches/imgui-file-dialog-ios.patch"
+if ! git -C "$IGFD_DIR" apply --reverse --check "$IGFD_PATCH" 2>/dev/null; then
+    git -C "$IGFD_DIR" apply --check "$IGFD_PATCH"
+    git -C "$IGFD_DIR" apply "$IGFD_PATCH"
+    trap 'git -C "$IGFD_DIR" apply --reverse "$IGFD_PATCH"' EXIT
+fi
+
 if [ ! -f "$CORE_BUILD/CMakeCache.txt" ]; then
     cmake -S "$BACHATA" -B "$CORE_BUILD" -G Ninja -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=17.4 -DCMAKE_BUILD_TYPE=Release -DENABLE_FEX_GUEST_CPU=ON \
