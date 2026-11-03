@@ -20,7 +20,7 @@ mkdir -p "$PREFIX" "$LOGS" "$STAMPS"
 ARCH=arm64
 SDK=iphoneos
 SDKMINVER="${SDKMINVER:-15.5}"
-NCPU="$(sysctl -n hw.ncpu)"
+NCPU="${JOBS:-$(sysctl -n hw.ncpu)}"
 
 SDKROOT="$(xcrun --sdk $SDK --show-sdk-path)"
 SDKVERSION="$(xcrun --sdk $SDK --show-sdk-version)"

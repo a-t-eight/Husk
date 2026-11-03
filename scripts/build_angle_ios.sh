@@ -62,6 +62,7 @@ angle_build () {
 
     env -i PATH="$PATH" HOME="$HOME" xcodebuild archive \
         -archivePath "ANGLE" -scheme "ANGLE" \
+        -derivedDataPath "$GPU/angle-derived-data" \
         -sdk iphoneos -arch arm64 -configuration Release \
         WEBCORE_LIBRARY_DIR="/usr/local/lib" NORMAL_UMBRELLA_FRAMEWORKS_DIR="" \
         CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
