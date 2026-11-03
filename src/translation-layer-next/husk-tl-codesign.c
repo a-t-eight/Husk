@@ -810,11 +810,26 @@ static int pkcs12_mac_check(const uint8_t *p12, size_t len, const char *password
     size_t slen = vl, sp = 0;
     if (!parse_tlv(seq, slen, &sp, &tag, &hl, &vl) || tag != 0x02) return -1; /* version */
     sp += hl + vl;
-    size_t auth_off = sp;
-    if (!parse_tlv(seq, slen, &sp, &tag, &hl, &vl)) return -1;
-    const uint8_t *auth = seq + auth_off;
-    size_t auth_len = hl + vl;
+    if (!parse_tlv(seq, slen, &sp, &tag, &hl, &vl) || tag != 0x30) return -1;
+    const uint8_t *content = seq + sp + hl;
+    size_t content_len = vl, cp = 0;
     sp += hl + vl;
+
+    /* RFC 7292 section 5.1: MAC the AuthenticatedSafe bytes inside Data's
+     * OCTET STRING, excluding the ContentInfo and OCTET STRING wrappers. */
+    static const uint8_t oid_data[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01 };
+    if (!parse_tlv(content, content_len, &cp, &tag, &hl, &vl) || tag != 0x06 ||
+        !oid_eq(content + cp + hl, vl, oid_data, sizeof(oid_data))) return -1;
+    cp += hl + vl;
+    if (!parse_tlv(content, content_len, &cp, &tag, &hl, &vl) || tag != 0xa0 ||
+        cp + hl + vl != content_len) return -1;
+    const uint8_t *explicit_data = content + cp + hl;
+    size_t explicit_len = vl, ep = 0;
+    if (!parse_tlv(explicit_data, explicit_len, &ep, &tag, &hl, &vl) || tag != 0x04 ||
+        hl + vl != explicit_len) return -1;
+    const uint8_t *auth = explicit_data + hl;
+    size_t auth_len = vl;
+
     if (sp >= slen) return 1; /* no macData: OpenSSL treats this as an empty-password success */
     if (!parse_tlv(seq, slen, &sp, &tag, &hl, &vl) || tag != 0x30) return -1;
     const uint8_t *mac = seq + sp + hl;
@@ -914,7 +929,6 @@ static OSStatus pkcs12_open(CFDataRef data, const char *password,
         int nv = 0;
         variants[nv] = pass; omit[nv] = false; nv++;
         if (text[t][0]) { variants[nv] = CFSTR(""); omit[nv] = false; nv++; }
-        variants[nv] = kCFNull; omit[nv] = false; nv++;
         variants[nv] = pass; omit[nv] = true; nv++; /* no passphrase key: OpenSSL NULL, 0 */
         for (int i = 0; i < nv; i++) {
             CFArrayRef got = NULL;
